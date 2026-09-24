@@ -23,8 +23,13 @@ spec:
     db_labels:
       env: demo            # your databases' label
     # Enforced by Teleport for PostgreSQL and MongoDB; informational elsewhere.
+    # MongoDB drivers open every connection with a handshake against "admin",
+    # and Teleport checks each message's database, so "admin" must be listed
+    # for any MongoDB client to connect. Data access stays limited to "demo"
+    # by the database role MongoDB itself grants the account.
     db_names:
       - demo
+      - admin
     db_users:
       - '{{user.metadata.name}}'   # bot-db-status
       - demo                       # Redis: the one ACL account

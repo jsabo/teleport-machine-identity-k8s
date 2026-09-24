@@ -198,7 +198,10 @@ func probeCassandra(ctx context.Context, t Target) (user, version string, err er
 }
 
 func probeOracle(ctx context.Context, t Target) (user, version string, err error) {
-	dsn := fmt.Sprintf("oracle://%s:%s@%s/%s?TIMEOUT=4", url.PathEscape(t.User), placeholderPassword, addr(t), url.PathEscape(t.Database))
+	// No user and no password: an "external" logon, the same thing sqlcl does
+	// with "/@host:port/service" behind tsh. Oracle then identifies the session
+	// by the certificate Teleport presented, which names the tunnel's user.
+	dsn := fmt.Sprintf("oracle://@%s/%s?TIMEOUT=4", addr(t), url.PathEscape(t.Database))
 	db, err := sql.Open("oracle", dsn)
 	if err != nil {
 		return "", "", err
