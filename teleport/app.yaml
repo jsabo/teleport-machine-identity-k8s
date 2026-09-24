@@ -1,0 +1,19 @@
+# Register the page with Teleport Application Access so it opens in a browser
+# through the proxy, behind Teleport login, with an app session in the audit
+# log. The URI is the in-cluster Service, so this must be served by an App
+# Service running INSIDE the same Kubernetes cluster; set the labels to what
+# that agent's app_service.resources selector matches.
+#
+#   tctl create -f teleport/app.yaml
+kind: app
+version: v3
+metadata:
+  name: db-status
+  description: >-
+    What a pod with a Machine ID can reach: every demo database, through the
+    Teleport proxy, with no credential in the pod.
+  labels:
+    env: demo
+    expose: web            # your in-cluster App Service's selector
+spec:
+  uri: http://db-status.db-status.svc.cluster.local:8080

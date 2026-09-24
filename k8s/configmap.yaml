@@ -1,0 +1,67 @@
+# Two files, side by side on purpose: the tunnels tbot opens, and the local
+# ports the application connects to. Change a database in both places.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-status
+  namespace: db-status
+data:
+  # ---- the sidecar: one authenticated tunnel per database ------------------
+  tbot.yaml: |
+    version: v2
+    proxy_server: ${PROXY_ADDR}
+    onboarding:
+      # The pod proves who it is with its projected ServiceAccount token.
+      # Nothing is stored; a restarted pod simply re-joins.
+      join_method: kubernetes
+      token: ${TOKEN_NAME}
+    storage:
+      type: memory
+    services:
+      # Each tunnel is a plain TCP listener on localhost. A client connects with
+      # no TLS and no password; tbot wraps the connection in mutual TLS to the
+      # Teleport proxy using the bot's certificate, and the proxy routes it to
+      # the database agent. `service` is the Teleport database resource name.
+      - type: database-tunnel
+        listen: tcp://127.0.0.1:15432
+        service: postgres
+        database: demo
+        username: bot-${BOT_NAME}
+      - type: database-tunnel
+        listen: tcp://127.0.0.1:13306
+        service: mysql
+        database: demo
+        username: bot-${BOT_NAME}
+      - type: database-tunnel
+        listen: tcp://127.0.0.1:27018
+        service: mongodb
+        database: demo
+        username: bot-${BOT_NAME}
+      - type: database-tunnel
+        listen: tcp://127.0.0.1:16379
+        service: redis
+        username: demo
+      - type: database-tunnel
+        listen: tcp://127.0.0.1:19000
+        service: clickhouse
+        username: bot-${BOT_NAME}
+      - type: database-tunnel
+        listen: tcp://127.0.0.1:19042
+        service: cassandra
+        username: bot-${BOT_NAME}
+      - type: database-tunnel
+        listen: tcp://127.0.0.1:11521
+        service: oracle
+        database: FREEPDB1
+        username: bot-${BOT_NAME}
+
+  # ---- the application: which local port is which database -----------------
+  databases.yaml: |
+    databases:
+      - { name: postgres,   engine: postgres,   port: 15432, user: bot-${BOT_NAME}, database: demo }
+      - { name: mysql,      engine: mysql,      port: 13306, user: bot-${BOT_NAME}, database: demo }
+      - { name: mongodb,    engine: mongodb,    port: 27018, user: bot-${BOT_NAME}, database: demo }
+      - { name: redis,      engine: redis,      port: 16379, user: demo }
+      - { name: clickhouse, engine: clickhouse, port: 19000, user: bot-${BOT_NAME} }
+      - { name: cassandra,  engine: cassandra,  port: 19042, user: bot-${BOT_NAME} }
+      - { name: oracle,     engine: oracle,     port: 11521, user: bot-${BOT_NAME}, database: FREEPDB1 }

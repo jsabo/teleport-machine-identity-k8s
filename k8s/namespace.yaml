@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: db-status
+  labels:
+    # Nothing in this namespace needs a privilege: tbot runs as an ordinary
+    # user with in-memory storage, so the strictest Pod Security level applies.
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted

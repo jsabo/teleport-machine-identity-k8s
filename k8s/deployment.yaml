@@ -1,0 +1,116 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db-status
+  namespace: db-status
+  labels:
+    app.kubernetes.io/name: db-status
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: db-status
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: db-status
+    spec:
+      serviceAccountName: db-status
+      automountServiceAccountToken: false
+      # Pod Security "restricted": both containers run as the same unprivileged
+      # user, with no capabilities and a read-only root filesystem.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        # ---- the application: an ordinary client of 127.0.0.1 ---------------
+        - name: app
+          image: ${IMAGE}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: BOT_NAME
+              value: ${BOT_NAME}
+            - name: POD_NAMESPACE
+              valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+            - name: POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - name: POD_SERVICE_ACCOUNT
+              valueFrom: { fieldRef: { fieldPath: spec.serviceAccountName } }
+            - name: NODE_NAME
+              valueFrom: { fieldRef: { fieldPath: spec.nodeName } }
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits: { memory: 128Mi }
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+
+        # ---- the sidecar: the pod's Teleport identity --------------------------
+        - name: tbot
+          image: public.ecr.aws/gravitational/tbot-distroless:${TBOT_VERSION}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+          args:
+            - start
+            - -c
+            - /config/tbot.yaml
+            - --log-format
+            - json
+            - --diag-addr
+            - 0.0.0.0:3011
+          env:
+            - name: KUBERNETES_TOKEN_PATH
+              value: /var/run/secrets/tokens/join-sa-token
+          ports:
+            - name: diagnostics
+              containerPort: 3011
+          # /readyz is green only when every tunnel holds a valid certificate.
+          readinessProbe:
+            httpGet: { path: /readyz, port: diagnostics }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /readyz, port: diagnostics }
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 6
+          resources:
+            requests: { cpu: 10m, memory: 64Mi }
+            limits: { memory: 256Mi }
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: join-sa-token
+              mountPath: /var/run/secrets/tokens
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: db-status
+        # The pod's proof of identity for the join. Short-lived and bound to
+        # this pod; the kubelet rotates it. Its audience is the Teleport cluster.
+        - name: join-sa-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  path: join-sa-token
+                  expirationSeconds: 600
+                  audience: ${TELEPORT_CLUSTER}

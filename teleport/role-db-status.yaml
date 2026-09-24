@@ -1,0 +1,33 @@
+# The bot's Teleport role: connect to the demo databases as itself, nothing else.
+#
+# On engines with automatic user provisioning (PostgreSQL, MySQL, MongoDB)
+# Teleport creates the account "bot-db-status" on first connect and grants it
+# the roles listed here; it is never created by hand and holds no password.
+# Redis has a fixed account. On ClickHouse and Oracle the account must exist
+# and be mapped to the certificate's CN ("bot-db-status"); Cassandra has no
+# accounts and trusts the identity Teleport checked.
+#
+#   tctl create -f teleport/role-db-status.yaml
+kind: role
+version: v8
+metadata:
+  name: db-status
+  description: >-
+    Read the demo databases as the bot's own identity. Held by the db-status
+    bot only.
+spec:
+  options:
+    max_session_ttl: 1h0m0s
+    create_db_user_mode: keep
+  allow:
+    db_labels:
+      env: demo            # your databases' label
+    db_names:
+      - demo
+      - FREEPDB1           # the Oracle service name
+    db_users:
+      - '{{user.metadata.name}}'   # bot-db-status
+      - demo                       # Redis: the one ACL account
+    db_roles:
+      - readWrite@demo
+  deny: {}
