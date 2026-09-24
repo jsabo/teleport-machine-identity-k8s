@@ -22,9 +22,9 @@ spec:
   allow:
     db_labels:
       env: demo            # your databases' label
+    # Enforced by Teleport for PostgreSQL and MongoDB; informational elsewhere.
     db_names:
       - demo
-      - FREEPDB1           # the Oracle service name
     db_users:
       - '{{user.metadata.name}}'   # bot-db-status
       - demo                       # Redis: the one ACL account

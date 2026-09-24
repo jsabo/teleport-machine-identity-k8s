@@ -108,7 +108,9 @@ func probeMongo(ctx context.Context, t Target) (user, version string, err error)
 			} `bson:"authenticatedUsers"`
 		} `bson:"authInfo"`
 	}
-	if err := client.Database("admin").RunCommand(ctx, bson.D{{Key: "connectionStatus", Value: 1}}).Decode(&status); err != nil {
+	// Run everything against the one database the role allows: Teleport enforces
+	// db_names for MongoDB, so a command sent to "admin" is refused.
+	if err := client.Database(t.Database).RunCommand(ctx, bson.D{{Key: "connectionStatus", Value: 1}}).Decode(&status); err != nil {
 		return "", "", err
 	}
 	var names []string

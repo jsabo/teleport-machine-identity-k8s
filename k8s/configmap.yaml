@@ -37,17 +37,22 @@ data:
         service: mongodb
         database: demo
         username: bot-${BOT_NAME}
+      # tbot requires `database` on every tunnel; for these three engines the
+      # value is informational (Teleport does not enforce db_names for them).
       - type: database-tunnel
         listen: tcp://127.0.0.1:16379
         service: redis
+        database: "0"
         username: demo
       - type: database-tunnel
         listen: tcp://127.0.0.1:19000
         service: clickhouse
+        database: default
         username: bot-${BOT_NAME}
       - type: database-tunnel
         listen: tcp://127.0.0.1:19042
         service: cassandra
+        database: system
         username: bot-${BOT_NAME}
       - type: database-tunnel
         listen: tcp://127.0.0.1:11521
