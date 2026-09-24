@@ -127,17 +127,21 @@ Then the audit log and the kill switch:
 ```bash
 tctl audit query exec 'SELECT event_time, db_service, db_user, db_name FROM db_session_start WHERE "user" = '"'"'bot-db-status'"'"' ORDER BY event_time DESC LIMIT 10'
 
-tctl lock --user=bot-db-status --ttl=2m       # reload: every row fails; the sidecar's /readyz goes unhealthy
-tctl rm lock/<id>                              # or wait two minutes; the pod recovers without a restart
+tctl lock --user=bot-db-status --ttl=2m       # reload: every row fails within seconds
+tctl rm lock/<id>                              # or wait two minutes; the rows recover without a restart
 ```
 
-`kubectl -n db-status get pod -o yaml | grep -ci secret` prints `0`: there is no Secret,
-no password and no kubeconfig anywhere in the pod.
+The sidecar's `/readyz` stays healthy while locked: its certificate is still valid, and the
+proxy refuses each new connection because the lock names the bot. Measured: all seven rows
+failed 15 seconds after the lock, and all seven recovered 10 seconds after its removal.
+
+`kubectl -n db-status get secrets` prints `No resources found`: there is no Secret, no
+password and no kubeconfig anywhere in the namespace.
 
 ## 5-minute demo script
 
-1. `kubectl -n db-status get deploy db-status -o yaml | grep -c -i -E 'secret|password'` →
-   "Zero. The app is a stock database client pointed at localhost."
+1. `kubectl -n db-status get secrets` → "No resources found. The app is a stock database
+   client pointed at localhost."
 2. Open the page → "Seven databases, seven engines, one identity. Each server names the
    bot as the connected user."
 3. `tctl bots instances ls` → "The pod is a Teleport identity, joined with its own
