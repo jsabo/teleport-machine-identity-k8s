@@ -20,11 +20,9 @@ Verified against Teleport 18.11.1 (Enterprise) on k3s.
   your people. `tctl lock --user=bot-db-status` turns every row on the page red within
   one reconnect.
 - **Machine ID is the way in; Workload Identity is the way out.** A SPIFFE identity issued
-  by Teleport proves who a pod is to AWS or to a peer, but it cannot open a session through
-  the proxy: the proxy admits only User CA certificates, which is what humans and bots
-  hold. This repo is the "in" demo. Its sibling
-  [teleport-workload-identity-k8s](https://github.com/jsabo/teleport-workload-identity-k8s)
-  is the "out" demo.
+  by Teleport Workload Identity proves who a pod is to AWS or to a peer, but it cannot open
+  a session through the proxy: the proxy admits only User CA certificates, which is what
+  humans and bots hold. This repo shows the way in.
 
 ## The components
 
