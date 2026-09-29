@@ -64,7 +64,11 @@ func probe(ctx context.Context, t Target) Result {
 func addr(t Target) string { return net.JoinHostPort("127.0.0.1", strconv.Itoa(t.Port)) }
 
 func probePostgres(ctx context.Context, t Target) (user, version string, err error) {
-	dsn := fmt.Sprintf("postgres://%s@%s/%s?sslmode=disable&connect_timeout=4",
+	// simple_protocol makes pgx send the query as a plain Query message instead
+	// of Parse/Bind/Execute. Teleport's session summarizer only reads
+	// db.session.query events, so extended-protocol sessions produce an empty
+	// transcript and the summary fails.
+	dsn := fmt.Sprintf("postgres://%s@%s/%s?sslmode=disable&connect_timeout=4&default_query_exec_mode=simple_protocol",
 		url.PathEscape(t.User), addr(t), url.PathEscape(t.Database))
 	conn, err := pgx.Connect(ctx, dsn)
 	if err != nil {
